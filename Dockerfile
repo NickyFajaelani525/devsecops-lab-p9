@@ -1,22 +1,39 @@
-# ❌ BAD: Menggunakan base image besar (full OS) dengan banyak package tidak diperlukan
-FROM ubuntu:22.04
+# ==========================================
+# 1. Base Image Minimal & Specific Tag
+# ==========================================
+FROM python:3.12-alpine AS builder
 
-# ❌ BAD: Menjalankan apt-get update dan install terpisah tanpa --no-install-recommends dan tanpa cleanup cache
-RUN apt-get update
-RUN apt-get install -y python3 python3-pip curl wget
+WORKDIR /build
 
-# ❌ BAD: Meng-copy seluruh direktori tanpa .dockerignore (termasuk .git atau file sensitif)
-COPY . /app
+# ==========================================
+# 2. Minimal Dependency Copy & Cache Cleared
+# ==========================================
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ❌ BAD: Tidak set WORKDIR, menggunakan cd di dalam RUN
-RUN cd /app && pip3 install -r requirements.txt
+# ==========================================
+# 3. Multi-Stage Build (Runtime Stage)
+# ==========================================
+FROM python:3.12-alpine AS runtime
 
-# ❌ BAD: Berjalan sebagai root (tidak ada USER directive)
+# ==========================================
+# 4. Least Privilege: Create Non-Root User
+# ==========================================
+RUN addgroup -g 10001 -S webgroup && \
+    adduser -u 10001 -S webuser -G webgroup
 
-# ❌ BAD: Menyimpan credential/secret secara hardcoded di ENV
-ENV DB_PASSWORD=supersecret123
-ENV API_KEY=abc123xyz
+WORKDIR /app
 
-EXPOSE 8080
+# Salin hanya library yang sudah jadi dari builder stage
+COPY --from=builder /install /usr/local
+COPY --chown=webuser:webgroup app.py .
 
-CMD ["python3", "/app/app.py"]
+# ==========================================
+# 5. Enforce Non-Root Execution & Production Server
+# ==========================================
+USER 10001:10001
+
+EXPOSE 5000
+
+# Tidak menyimpan secret via ENV, gunakan gunicorn production server
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
