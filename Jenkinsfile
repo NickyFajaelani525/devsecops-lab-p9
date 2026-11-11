@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -8,8 +7,21 @@ pipeline {
         timestamps()
     }
 
+    parameters {
+        string(
+            name: 'DOCKERFILE_PATH',
+            defaultValue: 'Dockerfile',
+            description: 'Path Dockerfile relatif terhadap root repository'
+        )
+
+        string(
+            name: 'IMAGE_NAME',
+            defaultValue: 'my-app',
+            description: 'Nama Docker image'
+        )
+    }
+
     environment {
-        IMAGE_NAME = 'my-app'
         TRIVY_IMAGE = 'aquasec/trivy:latest'
     }
 
@@ -38,12 +50,10 @@ pipeline {
         // ==========================================
         // 3. TRIVY FILESYSTEM SCAN
         // ==========================================
-        stage('SCA - Trivy Filesystem') {
+        stage('Trivy Filesystem Scan') {
             steps {
                 sh '''
                     set -eu
-
-                    IMAGE_TAG="${BUILD_NUMBER}"
 
                     TRIVY_PATH="/var/jenkins_home/trivy-workspace/${BUILD_NUMBER}"
                     TRIVY_CACHE="/var/jenkins_home/trivy-cache"
@@ -54,17 +64,8 @@ pipeline {
                     mkdir -p "$SCAN_TARGET"
                     mkdir -p "$TRIVY_CACHE"
 
-                    # Pastikan file yang dibutuhkan tersedia
-                    for FILE in app.py requirements.txt Dockerfile.secure .dockerignore
-                    do
-                        if [ ! -f "$WORKSPACE/$FILE" ]; then
-                            echo "ERROR: File $FILE tidak ditemukan!"
-                            exit 1
-                        fi
-                    done
-
-                    # Salin source ke named volume Jenkins
-                    cp app.py requirements.txt Dockerfile.secure .dockerignore "$SCAN_TARGET/"
+                    # Salin seluruh isi repository ke named volume
+                    cp -a "$WORKSPACE/." "$SCAN_TARGET/"
 
                     echo "===== RUNNING TRIVY FILESYSTEM SCAN ====="
 
@@ -79,7 +80,7 @@ pipeline {
                         --output "/jenkins_home/trivy-workspace/${BUILD_NUMBER}/trivy-fs-report.json" \
                         --exit-code 0
 
-                    # Salin laporan kembali ke workspace Jenkins
+                    # Salin laporan ke Jenkins workspace
                     cp "$TRIVY_PATH/trivy-fs-report.json" \
                        "$WORKSPACE/trivy-fs-report.json"
 
@@ -96,16 +97,26 @@ pipeline {
                 sh '''
                     set -eu
 
+                    DOCKERFILE_PATH="${DOCKERFILE_PATH}"
                     IMAGE_TAG="${BUILD_NUMBER}"
+
+                    echo "===== VALIDATING DOCKERFILE ====="
+
+                    if [ ! -f "$WORKSPACE/$DOCKERFILE_PATH" ]; then
+                        echo "ERROR: Dockerfile tidak ditemukan: $DOCKERFILE_PATH"
+                        exit 1
+                    fi
+
+                    echo "Dockerfile: $DOCKERFILE_PATH"
+                    echo "Image: ${IMAGE_NAME}:${IMAGE_TAG}"
 
                     echo "===== BUILDING DOCKER IMAGE ====="
 
                     docker build \
                         --pull \
-                        --no-cache \
-                        -f Dockerfile.secure \
+                        -f "$DOCKERFILE_PATH" \
                         -t "${IMAGE_NAME}:${IMAGE_TAG}" \
-                        .
+                        "$WORKSPACE"
 
                     echo "===== DOCKER IMAGE BUILT ====="
 
@@ -115,9 +126,9 @@ pipeline {
         }
 
         // ==========================================
-        // 5. TRIVY CONTAINER IMAGE SCAN
+        // 5. TRIVY IMAGE SCAN
         // ==========================================
-        stage('SCA - Trivy Image Scan') {
+        stage('Trivy Image Scan') {
             steps {
                 sh '''
                     set -eu
@@ -125,13 +136,10 @@ pipeline {
                     IMAGE_TAG="${BUILD_NUMBER}"
 
                     TRIVY_PATH="/var/jenkins_home/trivy-workspace/${BUILD_NUMBER}"
-                    TRIVY_CACHE="/jenkins_home/trivy-cache"
                     TRIVY_REPORT="$TRIVY_PATH/trivy-image-report.json"
 
                     echo "===== RUNNING TRIVY IMAGE SCAN ====="
 
-                    # Jangan langsung menghentikan shell ketika Trivy
-                    # mengembalikan exit code 1 karena vulnerability.
                     set +e
 
                     docker run --rm \
@@ -139,7 +147,7 @@ pipeline {
                         -v jenkins_home:/jenkins_home \
                         "$TRIVY_IMAGE" \
                         image "${IMAGE_NAME}:${IMAGE_TAG}" \
-                        --cache-dir "$TRIVY_CACHE" \
+                        --cache-dir /jenkins_home/trivy-cache \
                         --severity HIGH,CRITICAL \
                         --ignore-unfixed \
                         --format json \
@@ -150,17 +158,16 @@ pipeline {
 
                     set -e
 
-                    # Simpan laporan ke workspace meskipun scan gagal
+                    # Simpan laporan sebelum mengembalikan exit code
                     if [ -f "$TRIVY_REPORT" ]; then
                         cp "$TRIVY_REPORT" \
                            "$WORKSPACE/trivy-image-report.json"
 
-                        echo "Trivy image report copied to workspace."
+                        echo "Image scan report copied successfully."
                     else
-                        echo "WARNING: Trivy image report was not generated."
+                        echo "WARNING: Image scan report was not generated."
                     fi
 
-                    # Kembalikan status Trivy ke Jenkins
                     if [ "$TRIVY_STATUS" -ne 0 ]; then
                         echo "===== IMAGE SCAN FAILED ====="
                         echo "Vulnerability ditemukan atau proses scan mengalami error."
@@ -174,7 +181,7 @@ pipeline {
     }
 
     // ==========================================
-    // 6. POST BUILD ACTIONS
+    // 6. POST BUILD
     // ==========================================
     post {
         always {
@@ -186,7 +193,7 @@ pipeline {
                 fingerprint: true
             )
 
-            echo '===== CLEANING TRIVY TEMPORARY FILES ====='
+            echo '===== CLEANING TEMPORARY FILES ====='
 
             sh '''
                 rm -rf "/var/jenkins_home/trivy-workspace/${BUILD_NUMBER}"
