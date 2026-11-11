@@ -259,7 +259,7 @@ print("config:", " ".join(f"{s}={counts[s]}" for s in ("CRITICAL", "HIGH", "MEDI
 
                     echo "===== IMAGE METADATA ====="
                     docker images "$FULL_IMAGE"
-                    docker image inspect "$FULL_IMAGE" --format 'ID={{.Id}} Size={{.Size}} User={{.Config.User}} Workdir={{.Config.WorkingDir}} Exposed={{.Config.ExposedPorts}} Healthcheck={{if .Config.Healthcheck}}ENABLED{{else}}NONE{{end}} Cmd={{.Config.Cmd}}'
+                    docker image inspect "$FULL_IMAGE" --format 'ID={{.Id}} Size={{.Size}} User={{.Config.User}} Workdir={{.Config.WorkingDir}} Exposed={{.Config.ExposedPorts}} Healthcheck={{if index .Config "Healthcheck"}}ENABLED{{else}}NONE{{end}} Cmd={{.Config.Cmd}}'
                 '''
             }
         }
