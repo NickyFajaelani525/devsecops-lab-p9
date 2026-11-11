@@ -1,7 +1,40 @@
-.env
-.git
+# Git & CI/CD
+.git/
 .gitignore
+Jenkinsfile
+
+# Secrets, environment & credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+*.p12
+*secret*
+*credential*
+
+# Python caches & virtual environments
 __pycache__/
-*.pyc
-tests/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+# Docs, tests, evidence & scan artifacts
+README.md
 Dockerfile*
+.dockerignore
+tests/
+docs/
+evidence/
+trivy-*-report.json
+runtime-verify-*.txt
+
+# IDE & temporary files
+.vscode/
+.idea/
+.DS_Store
+*.tmp
+*.log

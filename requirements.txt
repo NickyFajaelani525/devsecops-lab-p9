@@ -1,7 +1,10 @@
-Flask==2.0.1
-Werkzeug==2.0.1
-Jinja2==3.0.1
-MarkupSafe==2.0.1
-itsdangerous==2.0.1
-click==8.0.4
-requests==2.25.1
+# Verified on python:3.12-alpine@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7
+# Direct dependencies: Flask==3.1.3, gunicorn==27.0.0 (plus transitive freeze)
+blinker==1.9.0
+click==8.5.1
+Flask==3.1.3
+gunicorn==27.0.0
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+Werkzeug==3.1.9

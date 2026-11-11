@@ -1,0 +1,26 @@
+# Local environment & secret files
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+
+# Python caches & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+# Trivy scan reports & verification outputs
+trivy-*-report.json
+runtime-verify-*.txt
+
+# IDE & OS temporary files
+.vscode/
+.idea/
+.DS_Store
+*.tmp
+*.log
