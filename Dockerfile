@@ -1,39 +1,17 @@
 # ==========================================
-# 1. Base Image Minimal & Specific Tag
+# BASELINE BEFORE HARDENING (Eksperimen P9)
 # ==========================================
-FROM python:3.12-alpine AS builder
-
-WORKDIR /build
-
-# ==========================================
-# 2. Minimal Dependency Copy & Cache Cleared
-# ==========================================
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# ==========================================
-# 3. Multi-Stage Build (Runtime Stage)
-# ==========================================
-FROM python:3.12-alpine AS runtime
-
-# ==========================================
-# 4. Least Privilege: Create Non-Root User
-# ==========================================
-RUN addgroup -g 10001 -S webgroup && \
-    adduser -u 10001 -S webuser -G webgroup
+# Base image & digest identik dengan branch main untuk kontrol eksperimen
+FROM python:3.12-alpine@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7
 
 WORKDIR /app
 
-# Salin hanya library yang sudah jadi dari builder stage
-COPY --from=builder /install /usr/local
-COPY --chown=webuser:webgroup app.py .
+# Single-stage, copy seluruh context, install global tanpa --no-cache-dir
+# Tanpa apk upgrade, tanpa virtualenv terisolasi, dan menyisakan pip + cache di runtime
+COPY . /app
+RUN pip install -r requirements.txt
 
-# ==========================================
-# 5. Enforce Non-Root Execution & Production Server
-# ==========================================
-USER 10001:10001
-
+# Berjalan sebagai root (tanpa directive USER non-root) dan tanpa HEALTHCHECK
 EXPOSE 5000
 
-# Tidak menyimpan secret via ENV, gunakan gunicorn production server
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
