@@ -118,23 +118,25 @@ Tahapan yang ditargetkan pada integrasi penuh (Checkpoint 4):
 - Pastikan `docker` CLI dan `/var/run/docker.sock` dapat diakses user di dalam container Jenkins.
 - Pastikan plugin **GitHub Branch Source**, **Pipeline**, dan credential PAT GitHub sudah dikonfigurasi di Jenkins.
 
+Untuk panduan langkah demi langkah setup Jenkins lokal, pembuatan Multibranch Pipeline, pengujian parameter `ENABLE_SECURITY_GATE`, dan pembacaan artifact hasil scan, lihat [`guide.md`](guide.md).
+
 ---
 
 ## 7. Ringkasan Hasil Pengujian Terobservasi
 
-*Catatan: Hasil `AFTER` di bawah ini berasal dari pengujian lokal pada 11 November 2026 (Trivy `0.76.1`, DB v2 UpdatedAt `2026-11-10 19:01:23 UTC`). Kolom `BEFORE` akan diisi setelah implementasi dan pengujian branch `before`.*
+*Catatan: Hasil di bawah ini berasal dari eksekusi Jenkins Multibranch Pipeline dengan Trivy `0.76.1` pada branch `before` (Build `#1`, commit `d998094`) dan branch `main` (Build `#2`, commit `ba61506`).*
 
-| Parameter | BEFORE (`before`) | AFTER (`main`, terobservasi lokal) |
+| Parameter | BEFORE (`before`) | AFTER (`main`) |
 |---|---|---|
-| Base image | *Menunggu Checkpoint 3/5* | `python:3.12-alpine` |
-| Base image digest | *Menunggu Checkpoint 3/5* | `sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7` |
-| Image size | *Menunggu Checkpoint 3/5* | `57.8 MB` (`57765934` bytes) |
-| Runtime user | *Menunggu Checkpoint 3/5* | `uid=10001(webuser) gid=10001(webgroup)` |
-| HEALTHCHECK | *Menunggu Checkpoint 3/5* | Aktif (`urllib.request` -> `/health` HTTP `200`) |
-| CRITICAL CVE | *Menunggu Checkpoint 3/5* | `0` |
-| HIGH CVE | *Menunggu Checkpoint 3/5* | `0` |
-| MEDIUM CVE | *Menunggu Checkpoint 3/5* | `0` |
-| LOW CVE | *Menunggu Checkpoint 3/5* | `0` |
-| Filesystem findings | *Menunggu Checkpoint 3/5* | `0` |
-| Config findings | *Menunggu Checkpoint 3/5* | `0` |
-| Runtime status | *Menunggu Checkpoint 3/5* | Gunicorn `27.0.0` listening `0.0.0.0:5000`, `/` & `/health` HTTP `200` |
+| Base image | `python:3.12-alpine` | `python:3.12-alpine` |
+| Base image digest | `sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7` | `sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7` |
+| Image size | `65.1 MB` (`65114271` bytes) | `57.8 MB` (`57765934` bytes) |
+| Runtime user | `uid=0(root) gid=0(root)` | `uid=10001(webuser) gid=10001(webgroup)` |
+| HEALTHCHECK | Tidak ada (`NONE`) | Aktif (`urllib.request` -> `/health` HTTP `200`) |
+| CRITICAL CVE | `0` | `0` |
+| HIGH CVE | `16` | `0` |
+| MEDIUM CVE | `11` | `0` |
+| LOW CVE | `1` | `0` |
+| Filesystem findings | `2` (`misconfig: HIGH=1, LOW=1`; `vuln=0`, `secret=0`) | `0` |
+| Config findings | `2` (`HIGH=1, LOW=1`) | `0` |
+| Runtime status | Gunicorn `27.0.0` listening `0.0.0.0:5000`, `/` & `/health` HTTP `200` | Gunicorn `27.0.0` listening `0.0.0.0:5000`, `/` & `/health` HTTP `200` |
